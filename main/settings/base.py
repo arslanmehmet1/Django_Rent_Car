@@ -41,6 +41,7 @@ INSTALLED_APPS = [
 
     #my Apps
     'users',
+    'car',
 
     #Third Party Apps
     'rest_framework',
