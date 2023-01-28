@@ -1,7 +1,9 @@
 from rest_framework.viewsets import ModelViewSet
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.permissions import IsAuthenticated
 
 from .models import Car, Reservation
-from .serializers import CarSerializer
+from .serializers import CarSerializer, ReservationSerializer
 from .permissions import IsStaffOrReadOnly
 
 from django.db.models import Q
@@ -20,17 +22,33 @@ class CarView(ModelViewSet):
         start = self.request.query_params.get('start')
         end = self.request.query_params.get('end')
 
-        cond1 = Q(start_date__lt=end)
-        cond2 = Q(end_date__gt=start)
-        # not_available = Reservation.objects.filter(
-        #     start_date__lt=end, end_date__gt=start
-        # ).values_list('car_id', flat=True)  # [1, 2]
+        if start is not None or end is not None:
 
-        not_available = Reservation.objects.filter(
-            cond1 & cond2
-        ).values_list('car_id', flat=True)  # [1, 2]
-        print(not_available)
+            # not_available = Reservation.objects.filter(
+            #     start_date__lt=end, end_date__gt=start
+            # ).values_list('car_id', flat=True)  # [1, 2]
 
-        queryset = queryset.exclude(id__in=not_available)
+            not_available = Reservation.objects.filter(
+                Q(start_date__lt=end) & Q(end_date__gt=start)
+            ).values_list('car_id', flat=True)  # [1, 2]
+
+            queryset = queryset.exclude(id__in=not_available)
 
         return queryset
+
+    # def get_serializer_class(self):
+    #     if self.request.user.is_staff:
+    #         return CarStaffSerializer
+    #     else:
+    #         CarSerizlizer
+
+
+class ReservationView(ListCreateAPIView):
+    queryset = Reservation.objects.all()
+    serializer_class = ReservationSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return super().get_queryset()
+        return super().get_queryset().filter(customer=self.request.user)
